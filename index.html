@@ -38,7 +38,7 @@ h1,h2,h3{margin:0 0 8px}
 .app{min-height:100vh}
 .sidebar{
   position:fixed;left:0;top:0;bottom:0;width:245px;background:#fff;
-  border-right:1px solid var(--border);padding:22px 14px;z-index:10
+  border-right:1px solid var(--border);padding:22px 14px;z-index:10;overflow-y:auto
 }
 .brand{font-weight:800;font-size:19px;padding:8px 12px 20px;color:var(--p)}
 .nav button{width:100%;text-align:left;background:none;padding:11px 13px;border-radius:10px;color:#65687a;margin:2px 0}
@@ -190,17 +190,18 @@ th{color:var(--muted);font-size:12px}
     <div class="form-grid">
       <div class="field">
         <label>Student Name</label>
-        <input id="name" value="Hasini">
+        <input id="name" placeholder="Enter student name">
       </div>
 
       <div class="field">
         <label>Roll Number</label>
-        <input id="roll" value="23A91A0501">
+        <input id="roll" placeholder="Enter roll number">
       </div>
 
       <div class="field">
         <label>Student Type</label>
         <select id="studentType" onchange="updateAcademicFields()">
+          <option value="" selected disabled>Select student type</option>
           <option value="Engineering">Engineering / Degree</option>
           <option value="Intermediate">Intermediate</option>
         </select>
@@ -208,12 +209,13 @@ th{color:var(--muted);font-size:12px}
 
       <div class="field">
         <label>Branch / Group</label>
-        <input id="branch" value="CSE">
+        <input id="branch" placeholder="Enter branch / group">
       </div>
 
       <div class="field">
         <label>Year</label>
         <select id="year">
+          <option value="" selected disabled>Select year</option>
           <option>1st Year</option>
           <option>2nd Year</option>
           <option>3rd Year</option>
@@ -224,6 +226,7 @@ th{color:var(--muted);font-size:12px}
       <div class="field">
         <label>Semester / Exam Stage</label>
         <select id="sem">
+          <option value="" selected disabled>Select semester / exam stage</option>
           <option>1st Semester</option>
           <option>2nd Semester</option>
         </select>
@@ -231,27 +234,27 @@ th{color:var(--muted);font-size:12px}
 
       <div class="field">
         <label>Section</label>
-        <input id="section" value="A">
+        <input id="section" placeholder="Enter section">
       </div>
 
       <div class="field">
         <label>College / School Name</label>
-        <input id="college" value="RGUKT Srikakulam">
+        <input id="college" placeholder="Enter college / school name">
       </div>
 
       <div class="field">
         <label>Total Classes Conducted</label>
-        <input id="initialConducted" type="number" min="0" value="50">
+        <input id="initialConducted" type="number" min="0" placeholder="Enter total classes conducted">
       </div>
 
       <div class="field">
         <label>Classes Attended</label>
-        <input id="initialAttended" type="number" min="0" value="45">
+        <input id="initialAttended" type="number" min="0" placeholder="Enter classes attended">
       </div>
 
       <div class="field">
         <label>Minimum Required Attendance %</label>
-        <input id="minimum" type="number" min="1" max="100" value="75">
+        <input id="minimum" type="number" min="1" max="100" placeholder="Enter required attendance %">
       </div>
     </div>
 
@@ -331,8 +334,8 @@ const defaultTimetable = {
   Sunday:[]
 };
 
-let student = loadJSON("student", null);
-let attendance = loadJSON("attendance", null);
+let student = loadJSON("student_v8", null);
+let attendance = loadJSON("attendance_v8", null);
 let holidays = loadJSON("holidays", []);
 let longHolidays = loadJSON("longHolidays", []);
 let calendarViewDate = new Date();
@@ -342,24 +345,6 @@ const teluguCalendarMonths = [
   "September", "October", "November", "December"
 ];
 
-
-if(!attendance){
-  attendance = {conducted:50, attended:45};
-}
-
-if(!student){
-  student = {
-    name:"Hasini",
-    roll:"23A91A0501",
-    type:"Engineering",
-    branch:"CSE",
-    year:"1st Year",
-    sem:"1st Semester",
-    section:"A",
-    college:"RGUKT Srikakulam",
-    minimum:75
-  };
-}
 
 /* -------------------- STORAGE HELPERS -------------------- */
 
@@ -402,9 +387,9 @@ function login(){
     return;
   }
 
-  localStorage.setItem("logged","1");
+  localStorage.setItem("logged_v8","1");
 
-  if(localStorage.getItem("student")){
+  if(localStorage.getItem("student_v8")){
     startApp();
   }else{
     showDetails();
@@ -448,11 +433,29 @@ function updateAcademicFields(){
 }
 
 function saveDetails(){
-  const conducted = numberValue("initialConducted");
-  const attended = numberValue("initialAttended");
-  const minimum = numberValue("minimum",75);
+  const name = value("name").trim();
+  const roll = value("roll").trim();
+  const type = value("studentType").trim();
+  const branch = value("branch").trim();
+  const year = value("year").trim();
+  const sem = value("sem").trim();
+  const section = value("section").trim();
+  const college = value("college").trim();
+  const conductedText = value("initialConducted").trim();
+  const attendedText = value("initialAttended").trim();
+  const minimumText = value("minimum").trim();
+  const conducted = Number(conductedText);
+  const attended = Number(attendedText);
+  const minimum = Number(minimumText);
 
-  if(conducted < 0 || attended < 0 || minimum <= 0 || minimum > 100){
+  if(!name || !roll || !type || !branch || !year || !sem || !section || !college ||
+     conductedText === "" || attendedText === "" || minimumText === "") {
+    alert("Please fill in all student details.");
+    return;
+  }
+
+  if(!Number.isFinite(conducted) || !Number.isFinite(attended) || !Number.isFinite(minimum) ||
+     conducted < 0 || attended < 0 || minimum <= 0 || minimum > 100){
     alert("Please enter valid attendance values.");
     return;
   }
@@ -463,24 +466,21 @@ function saveDetails(){
   }
 
   student = {
-    name:value("name").trim() || "Student",
-    roll:value("roll").trim() || "Not Provided",
-    type:value("studentType"),
-    branch:value("branch").trim() || "Not Provided",
-    year:value("year"),
-    sem:value("sem"),
-    section:value("section").trim() || "A",
-    college:value("college").trim() || "Not Provided",
+    name:name,
+    roll:roll,
+    type:type,
+    branch:branch,
+    year:year,
+    sem:sem,
+    section:section,
+    college:college,
     minimum:minimum
   };
 
-  attendance = {
-    conducted:conducted,
-    attended:attended
-  };
+  attendance = {conducted:conducted, attended:attended};
 
-  saveJSON("student",student);
-  saveJSON("attendance",attendance);
+  saveJSON("student_v8",student);
+  saveJSON("attendance_v8",attendance);
   startApp();
 }
 
@@ -502,7 +502,7 @@ function buildNav(){
     </button>
   `).join("");
 
-  document.getElementById("mobileNav").innerHTML = pages.slice(0,5).map(page => `
+  document.getElementById("mobileNav").innerHTML = pages.map(page => `
     <button id="m-${page[0]}" onclick="go('${page[0]}')">
       ${page[1]}<br>${page[2]}
     </button>
@@ -554,7 +554,7 @@ function status(){
 }
 
 function saveAttendance(){
-  saveJSON("attendance",attendance);
+  saveJSON("attendance_v8",attendance);
 }
 
 function attendanceClass(){
@@ -1823,7 +1823,7 @@ function renderCalendar(content){
         <div class="notice" style="background:#eef4ff">
           <strong>📌 Public Holidays</strong>
           <span>
-            Republic Day, Independence Day, GanRepublic Day, Ambedkar Jayanti, May Day, Independence Day, Gandhi Jayanti, and Christmas are shown on the calendar.
+            Republic Day, Ambedkar Jayanti, May Day, Independence Day, Gandhi Jayanti, and Christmas are shown on the calendar.
           </span>
         </div>
 
@@ -2131,16 +2131,29 @@ function renderHistory(){
 /* -------------------- PROFILE / SETTINGS -------------------- */
 
 function editProfile(){
-  student.name = value("eName").trim() || "Student";
-  student.roll = value("eRoll").trim() || "Not Provided";
-  student.type = value("eType");
-  student.branch = value("eBranch").trim() || "Not Provided";
-  student.year = value("eYear").trim() || "Not Provided";
-  student.sem = value("eSem").trim() || "Not Provided";
-  student.section = value("eSection").trim() || "A";
-  student.college = value("eCollege").trim() || "Not Provided";
+  const name = value("eName").trim();
+  const roll = value("eRoll").trim();
+  const branch = value("eBranch").trim();
+  const year = value("eYear").trim();
+  const sem = value("eSem").trim();
+  const section = value("eSection").trim();
+  const college = value("eCollege").trim();
 
-  saveJSON("student",student);
+  if(!name || !roll || !branch || !year || !sem || !section || !college){
+    alert("Please fill in all profile details.");
+    return;
+  }
+
+  student.name = name;
+  student.roll = roll;
+  student.type = value("eType");
+  student.branch = branch;
+  student.year = year;
+  student.sem = sem;
+  student.section = section;
+  student.college = college;
+
+  saveJSON("student_v8",student);
 
   buildNav();
   alert("Profile updated successfully.");
@@ -2156,7 +2169,7 @@ function saveSettings(){
   }
 
   student.minimum = min;
-  saveJSON("student",student);
+  saveJSON("student_v8",student);
 
   alert("Settings saved successfully.");
   go("dashboard");
@@ -2183,7 +2196,7 @@ function forgot(){
 }
 
 function logout(){
-  localStorage.removeItem("logged");
+  localStorage.removeItem("logged_v8");
 
   document.getElementById("app").classList.add("hidden");
   document.getElementById("login").classList.remove("hidden");
@@ -2212,12 +2225,12 @@ function escapeJS(text){
 
 /* -------------------- STARTUP -------------------- */
 
-if(localStorage.getItem("logged") && localStorage.getItem("student")){
+if(localStorage.getItem("logged_v8") && localStorage.getItem("student_v8")){
   startApp();
 }
 
 setTimeout(() => {
-  if(localStorage.getItem("logged")){
+  if(localStorage.getItem("logged_v8")){
     notifyIfNeeded();
   }
 },1200);
