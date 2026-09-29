@@ -112,6 +112,7 @@ h1,h2,h3{margin:0 0 8px}
   padding:18px;border-radius:15px;font-weight:800;font-size:16px;border:2px solid transparent
 }
 .choice.yes{background:#e7f8ef;color:var(--green)}
+.holiday-choice{background:#fff4e8;color:#765000;border-color:#f0c98b}
 .choice.no{background:#ffe8e8;color:var(--red)}
 .choice:hover{border-color:currentColor}
 .small-note{font-size:12px;color:var(--muted);line-height:1.5}
@@ -300,7 +301,6 @@ const pages = [
   ["daily","📅","Daily Monitor"],
   ["history","📝","History"],
   ["goal","🎯","Goal Tracker"],
-  ["calendar","🗓️","Calendar"],
   ["timetable","📚","Timetable"],
   ["notifications","🔔","Notifications"],
   ["profile","👤","Profile"],
@@ -838,13 +838,37 @@ function submitToday(mode){
   const holiday = holidayInfo(new Date());
   const classes = dailyClasses();
 
-  if(holiday.holiday){
-    alert("Today is a " + holiday.name + ". No attendance is added for a holiday.");
+  if(current.record.submitted){
+    alert("Today's attendance is already submitted.");
     return;
   }
 
-  if(current.record.submitted){
-    alert("Today's attendance is already submitted.");
+  /* HOLIDAY:
+     Record the day in history, but do NOT increase conducted/attended classes.
+  */
+  if(mode === "holiday"){
+    current.record.submitted = true;
+    current.record.mode = "holiday";
+    current.record.addedToOverall = false;
+    current.record.holidayName = holiday.holiday ? holiday.name : "Holiday";
+
+    if(!current.record.xpAwarded){
+      addXP(10);
+      current.record.xpAwarded = true;
+    }
+
+    saveDaily(current.data);
+    alert(
+      holiday.holiday
+        ? "Holiday recorded: " + holiday.name + ". Attendance was not changed."
+        : "Holiday recorded. Attendance was not changed."
+    );
+    render("daily");
+    return;
+  }
+
+  if(holiday.holiday){
+    alert("Today is " + holiday.name + ". Please choose HOLIDAY instead of adding attendance.");
     return;
   }
 
@@ -1210,9 +1234,11 @@ function render(page){
         <div class="reminder" style="background:#fff4e8;border-color:#f0c98b;color:#765000">
           <div>
             <b>🏖️ Today is a holiday — ${escapeHTML(todayHoliday.name)}</b>
-            No classes are expected today, so attendance will not be added.
+            Select HOLIDAY below to record it. Attendance will not be changed.
           </div>
-          <button class="secondary" onclick="go('calendar')">Open Calendar</button>
+          <button class="choice holiday-choice" onclick="submitToday('holiday')">
+            🏖️ HOLIDAY — Record Holiday
+          </button>
         </div>
       ` : !submitted ? `
         <div class="reminder">
@@ -1243,11 +1269,17 @@ function render(page){
 
           ${todayHoliday.holiday ? `
             <div class="notice" style="background:#fff4e8">
-              <strong>🏖️ Holiday</strong>
+              <strong>🏖️ Holiday Option</strong>
               <span>
-                This date is excluded from today's attendance check-in.
-                Your attendance total will not increase just because it is a holiday.
+                This date is excluded from attendance. Use the button below to keep a history record.
               </span>
+              ${!submitted ? `
+                <button class="choice holiday-choice" style="margin-top:12px" onclick="submitToday('holiday')">
+                  🏖️ HOLIDAY — Do Not Add Attendance
+                </button>
+              ` : `
+                <span><b>Holiday recorded in History.</b></span>
+              `}
             </div>
           ` : !submitted ? `
             <div class="choice-row">
@@ -1310,7 +1342,7 @@ function render(page){
             ` : ""}
           ` : `
             <div class="notice">
-              <strong>Today's status: ${current.record.mode === "yes" ? "Present" : current.record.mode === "no" ? "Absent" : "Subject-wise"}</strong>
+              <strong>Today's status: ${current.record.mode === "holiday" ? "Holiday" : current.record.mode === "yes" ? "Present" : current.record.mode === "no" ? "Absent" : "Subject-wise"}</strong>
               <span class="muted">
                 You cannot add today's classes again, so the overall attendance is not duplicated.
               </span>
@@ -1344,7 +1376,7 @@ function render(page){
     content.innerHTML = `
       <div class="card">
         <h2>📝 Attendance History</h2>
-        <p class="muted">Your daily attendance check-in history.</p>
+        <p class="muted">Your daily attendance and holiday history.</p>
 
         <div id="historyTable"></div>
       </div>
@@ -2085,7 +2117,7 @@ function renderHistory(){
   if(!keys.length){
     container.innerHTML = `
       <p class="muted">
-        No attendance history yet. Complete today's attendance check-in.
+        No history yet. Complete today's attendance or record a holiday.
       </p>
     `;
     return;
@@ -2094,13 +2126,15 @@ function renderHistory(){
   const rows = keys.map(key => {
     const record = data[key];
     const mode =
+      record.mode === "holiday" ? "Holiday" :
       record.mode === "yes" ? "Present" :
       record.mode === "no" ? "Absent" :
       "Subject-wise";
 
     const cls =
       mode === "Present" ? "safe" :
-      mode === "Absent" ? "danger" : "warn";
+      mode === "Absent" ? "danger" :
+      mode === "Holiday" ? "warn" : "warn";
 
     return `
       <tr>
